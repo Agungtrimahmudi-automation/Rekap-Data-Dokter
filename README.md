@@ -99,10 +99,11 @@ Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet D
 
 | Sheet | Isi |
 | :--- | :--- |
-| **Rizal** | Data harian dr. Rizal Fahly, Sp.PD |
-| **Sarning** | Data harian dr. Wa Ode Sarning S, Sp.PD |
-| **Putri** | Data harian dr. Putri Hidayasyah Purnama Lestari Sp.PK |
-| **Yanti** | Data harian dr. Mulyanti Sulastri Sp.GK |
+| **Dokter A** | Data harian dr. Rizal Fahly, Sp.PD |
+| **Dokter B** | Data harian dr. Wa Ode Sarning S, Sp.PD |
+| **Dokter C** | Data harian dr. Putri Hidayasyah Purnama Lestari Sp.PK |
+| **Dokter D** | Data harian dr. Mulyanti Sulastri Sp.GK |
+*Catatan : Nama dan Nik adalah Placeholder demi menjaga privasi.
 
 **Struktur setiap sheet:**
 
@@ -129,7 +130,7 @@ Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet D
 ### Bagi Staf (Pengguna)
 
 1. Buka Google Form
-2. Upload 3 file Excel (Rawat Inap, Poli, ICU)
+2. Upload 3 file Spreadsheets (Rawat Inap, Poli, ICU)
 3. Isi bulan target (contoh: `06/2026`)
 4. Klik Submit
 5. Tunggu email notifikasi (1-2 menit)

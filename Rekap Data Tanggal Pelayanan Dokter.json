@@ -1,0 +1,1280 @@
+{
+  "name": "Rekapitulasi Kunjungan Dokter Otomatis (Google Sheets Source)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rekap-dokter",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook-Trigger-ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ],
+      "webhookId": ""
+    },
+    {
+      "parameters": {
+        "resource": "spreadsheet",
+        "title": "=Rekap Dokter {{ $json.body.bulan.replace('/', '-') }}",
+        "sheetsUi": {
+          "sheetValues": [
+            {
+              "title": "Dokter_A"
+            },
+            {
+              "title": "Dokter_B"
+            },
+            {
+              "title": "Dokter_C"
+            },
+            {
+              "title": "Dokter_D"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Spreadsheet-Node-ID",
+      "name": "Buat Spreadsheet Output",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        96
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"fileId\": $json.spreadsheetId, \"fileUrl\": $json.spreadsheetUrl } }}",
+        "options": {}
+      },
+      "id": "Respond-Webhook-ID",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst bulan = body.bulan || '';\nconst fileUrls = body.fileUrls || [];\nconst email = body.email || body['Email Address'] || '';\n\nif (!bulan || !/^\\d{2}\\/\\d{4}$/.test(bulan)) {\n  throw new Error('Field \"bulan\" wajib format MM/YYYY. Diterima: ' + JSON.stringify(bulan));\n}\nif (!Array.isArray(fileUrls) || fileUrls.length < 3) {\n  throw new Error('Field \"fileUrls\" wajib array berisi 3 link: [rawat_inap, poli, icu]');\n}\n\nconst [bulanNum, tahun] = bulan.split('/');\nconst bulanNames = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];\nconst idx = parseInt(bulanNum, 10) - 1;\nif (idx < 0 || idx > 11) {\n  throw new Error('Bulan tidak valid: ' + bulanNum);\n}\nconst sheetName = bulanNames[idx];\n\nfunction extractFileId(url) {\n  if (!url) return null;\n  let m = String(url).match(/\\/d\\/([a-zA-Z0-9_-]+)/);\n  if (m) return m[1];\n  m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  if (m) return m[1];\n  return null;\n}\n\nconst fileTypes = ['rawat-inap', 'poli', 'icu'];\nconst items = [];\n\nfor (let i = 0; i < 3; i++) {\n  const fileId = extractFileId(fileUrls[i]);\n  if (!fileId) {\n    throw new Error('Tidak bisa mengekstrak fileId dari link untuk \"' + fileTypes[i] + '\": ' + fileUrls[i]);\n  }\n  items.push({\n    json: {\n      fileType: fileTypes[i],\n      fileId: fileId,\n      sheetName: sheetName,\n      bulan: bulan,\n      email: email\n    }\n  });\n}\n\nreturn items;"
+      },
+      "id": "Extract-Node-ID",
+      "name": "Ekstrak FileId & Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "rawat-inap-ID",
+                    "leftValue": "={{ $json.fileType }}",
+                    "rightValue": "rawat-inap",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rawat-inap"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "poli-ID",
+                    "leftValue": "={{ $json.fileType }}",
+                    "rightValue": "poli",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "poli"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "icu-ID",
+                    "leftValue": "={{ $json.fileType }}",
+                    "rightValue": "icu",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "icu"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Switch-Type-ID",
+      "name": "Switch (Jenis Sumber)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.fileId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "Read-RI-ID",
+      "name": "Baca Rawat Inap",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        192
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const bulan = $('Webhook Trigger').first().json.body.bulan;\nconst [targetMonthStr, targetYearStr] = bulan.split('/');\nconst targetMonth = parseInt(targetMonthStr, 10);\nconst targetYear = parseInt(targetYearStr, 10);\n\nfunction parseTanggal(v) {\n  if (!v) return null;\n  const raw = String(v).trim();\n  if (/^\\d+(\\.\\d+)?$/.test(raw) && Number(raw) > 1000) {\n    const utcMs = Math.round((Number(raw) - 25569) * 86400 * 1000);\n    return new Date(utcMs);\n  }\n  const parts = raw.split(/[\\/\\-]/);\n  if (parts.length !== 3) return null;\n  let mm = parseInt(parts[0], 10);\n  let dd = parseInt(parts[1], 10);\n  let yy = parseInt(parts[2], 10);\n  if (isNaN(mm) || isNaN(dd) || isNaN(yy)) return null;\n  if (yy < 100) yy = yy + (yy < 50 ? 2000 : 1900);\n  if (mm < 1 || mm > 12) return null;\n  return new Date(Date.UTC(yy, mm - 1, dd));\n}\n\nfunction formatTanggal(d) {\n  return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + '/' + d.getUTCFullYear();\n}\n\nfunction addDays(d, n) {\n  const nd = new Date(d);\n  nd.setUTCDate(nd.getUTCDate() + n);\n  return nd;\n}\n\nfunction isInTargetMonth(d) {\n  return d.getUTCMonth() + 1 === targetMonth && d.getUTCFullYear() === targetYear;\n}\n\nconst output = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  const namaDokterRaw = row['NAMA DOKTER'];\n  const masuk = parseTanggal(row['TGL MASUK']);\n  const keluar = parseTanggal(row['TGL KELUAR']);\n  if (!namaDokterRaw || !masuk || !keluar) continue;\n  let cursor = masuk;\n  const end = keluar.getTime() >= masuk.getTime() ? keluar : masuk;\n  while (cursor.getTime() <= end.getTime()) {\n    if (isInTargetMonth(cursor)) {\n      output.push({\n        json: {\n          namaDokterRaw: namaDokterRaw,\n          tanggal: formatTanggal(cursor)\n        }\n      });\n    }\n    cursor = addDays(cursor, 1);\n  }\n}\nreturn output;"
+      },
+      "id": "Format-RI-ID",
+      "name": "Format Rawat Inap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "DokterA-cond",
+                    "leftValue": "={{ $json.dokterKey }}",
+                    "rightValue": "dokter_a",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "dokter_a"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "DokterB-cond",
+                    "leftValue": "={{ $json.dokterKey }}",
+                    "rightValue": "dokter_b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "dokter_b"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "DokterC-cond",
+                    "leftValue": "={{ $json.dokterKey }}",
+                    "rightValue": "dokter_c",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "dokter_c"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "DokterD-cond",
+                    "leftValue": "={{ $json.dokterKey }}",
+                    "rightValue": "dokter_d",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "dokter_d"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Switch-Dokter-ID",
+      "name": "Switch (Dokter)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1808,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Buat Spreadsheet Output').first().json.spreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Dokter_A",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "no": "={{ $json.no }}",
+            "nikDokter": "={{ $json.nikDokter }}",
+            "namaDokter": "={{ $json.namaDokter }}",
+            "tanggalPelayanan": "={{ $json.tanggalPelayanan }}",
+            "jumlahPasien": "={{ $json.jumlahPasien }}",
+            "jumlahBacaanPenunjang": "={{ $json.jumlahBacaanPenunjang }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "dokterKey",
+              "displayName": "dokterKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "no",
+              "displayName": "no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nikDokter",
+              "displayName": "nikDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "namaDokter",
+              "displayName": "namaDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tanggalPelayanan",
+              "displayName": "tanggalPelayanan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahPasien",
+              "displayName": "jumlahPasien",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahBacaanPenunjang",
+              "displayName": "jumlahBacaanPenunjang",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "Save-DokterA-ID",
+      "name": "Simpan ke Sheet Dokter_A",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        48
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const spreadsheet = $('Buat Spreadsheet Output').first().json;\nreturn [{\n  json: {\n    spreadsheetId: spreadsheet.spreadsheetId,\n    spreadsheetUrl: spreadsheet.spreadsheetUrl,\n    totalBarisDitulis: $input.all().length\n  }\n}];"
+      },
+      "id": "Wait-All-ID",
+      "name": "Tunggu Semua Selesai",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        368
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Merge1').item.json.email || 'YOUR_EMAIL@example.com' }}",
+        "subject": "=Rekap Kunjungan Dokter - {{ $('Webhook Trigger').first().json.body.bulan }}",
+        "message": "=<p>Halo,</p><p>Rekap kunjungan dokter untuk bulan <b>{{ $('Webhook Trigger').first().json.body.bulan }}</b> sudah selesai diproses.</p><p>Link spreadsheet: <a href=\"{{ $json.spreadsheetUrl }}\">{{ $json.spreadsheetUrl }}</a></p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "Send-Email-ID",
+      "name": "Kirim Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3040,
+        368
+      ],
+      "webhookId": "",
+      "executeOnce": true,
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Buat Spreadsheet Output').first().json.spreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Dokter_B",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "no": "={{ $json.no }}",
+            "nikDokter": "={{ $json.nikDokter }}",
+            "namaDokter": "={{ $json.namaDokter }}",
+            "tanggalPelayanan": "={{ $json.tanggalPelayanan }}",
+            "jumlahPasien": "={{ $json.jumlahPasien }}",
+            "jumlahBacaanPenunjang": "={{ $json.jumlahBacaanPenunjang }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "dokterKey",
+              "displayName": "dokterKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "no",
+              "displayName": "no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nikDokter",
+              "displayName": "nikDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "namaDokter",
+              "displayName": "namaDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tanggalPelayanan",
+              "displayName": "tanggalPelayanan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahPasien",
+              "displayName": "jumlahPasien",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahBacaanPenunjang",
+              "displayName": "jumlahBacaanPenunjang",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "Save-DokterB-ID",
+      "name": "Simpan ke Sheet Dokter_B",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        240
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Buat Spreadsheet Output').first().json.spreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Dokter_C",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "no": "={{ $json.no }}",
+            "nikDokter": "={{ $json.nikDokter }}",
+            "namaDokter": "={{ $json.namaDokter }}",
+            "tanggalPelayanan": "={{ $json.tanggalPelayanan }}",
+            "jumlahPasien": "={{ $json.jumlahPasien }}",
+            "jumlahBacaanPenunjang": "={{ $json.jumlahBacaanPenunjang }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "dokterKey",
+              "displayName": "dokterKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "no",
+              "displayName": "no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nikDokter",
+              "displayName": "nikDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "namaDokter",
+              "displayName": "namaDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tanggalPelayanan",
+              "displayName": "tanggalPelayanan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahPasien",
+              "displayName": "jumlahPasien",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahBacaanPenunjang",
+              "displayName": "jumlahBacaanPenunjang",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "Save-DokterC-ID",
+      "name": "Simpan ke Sheet Dokter_C",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        416
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Buat Spreadsheet Output').first().json.spreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Dokter_D",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "no": "={{ $json.no }}",
+            "nikDokter": "={{ $json.nikDokter }}",
+            "namaDokter": "={{ $json.namaDokter }}",
+            "tanggalPelayanan": "={{ $json.tanggalPelayanan }}",
+            "jumlahPasien": "={{ $json.jumlahPasien }}",
+            "jumlahBacaanPenunjang": "={{ $json.jumlahBacaanPenunjang }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "dokterKey",
+              "displayName": "dokterKey",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "no",
+              "displayName": "no",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nikDokter",
+              "displayName": "nikDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "namaDokter",
+              "displayName": "namaDokter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tanggalPelayanan",
+              "displayName": "tanggalPelayanan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahPasien",
+              "displayName": "jumlahPasien",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlahBacaanPenunjang",
+              "displayName": "jumlahBacaanPenunjang",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "Save-DokterD-ID",
+      "name": "Simpan ke Sheet Dokter_D",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2016,
+        624
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.fileId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "Read-Poli-ID",
+      "name": "Baca Poli",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        384
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const bulan = $('Webhook Trigger').first().json.body.bulan;\nconst [targetMonthStr, targetYearStr] = bulan.split('/');\nconst targetMonth = parseInt(targetMonthStr, 10);\nconst targetYear = parseInt(targetYearStr, 10);\n\nfunction excelSerialToDate(serial) {\n  const utcMs = Math.round((Number(serial) - 25569) * 86400 * 1000);\n  return new Date(utcMs);\n}\n\nfunction parseTanggal(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const raw = String(v).trim();\n  if (/^\\d+(\\.\\d+)?$/.test(raw) && Number(raw) > 1000) {\n    return excelSerialToDate(raw);\n  }\n  const parts = raw.split(/[\\/\\-]/);\n  if (parts.length === 3) {\n    let dd = parseInt(parts[0], 10);\n    let mm = parseInt(parts[1], 10);\n    let yy = parseInt(parts[2], 10);\n    if (isNaN(dd) || isNaN(mm) || isNaN(yy)) return null;\n    if (yy < 100) yy = yy + (yy < 50 ? 2000 : 1900);\n    return new Date(Date.UTC(yy, mm - 1, dd));\n  }\n  return null;\n}\n\nfunction formatTanggal(d) {\n  return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + '/' + d.getUTCFullYear();\n}\n\nfunction isInTargetMonth(d) {\n  return d.getUTCMonth() + 1 === targetMonth && d.getUTCFullYear() === targetYear;\n}\n\nconst output = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  const namaDokterRaw = row['NAMA DOKTER'];\n  const tglRaw = row['TANGGAL KUNJUNGAN'];\n  const tgl = parseTanggal(tglRaw);\n  if (!namaDokterRaw || !tgl) continue;\n  if (!isInTargetMonth(tgl)) continue;\n  output.push({\n    json: {\n      namaDokterRaw: namaDokterRaw,\n      tanggal: formatTanggal(tgl)\n    }\n  });\n}\nreturn output;"
+      },
+      "id": "Format-Poli-ID",
+      "name": "Format Poli",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.fileId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "Read-ICU-ID",
+      "name": "Baca ICU",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        576
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const bulan = $('Webhook Trigger').first().json.body.bulan;\nconst [targetMonthStr, targetYearStr] = bulan.split('/');\nconst targetMonth = parseInt(targetMonthStr, 10);\nconst targetYear = parseInt(targetYearStr, 10);\n\nfunction parseTanggal(v) {\n  if (!v) return null;\n  const raw = String(v).trim();\n  if (/^\\d+(\\.\\d+)?$/.test(raw) && Number(raw) > 1000) {\n    const utcMs = Math.round((Number(raw) - 25569) * 86400 * 1000);\n    return new Date(utcMs);\n  }\n  const parts = raw.split(/[\\/\\-]/);\n  if (parts.length !== 3) return null;\n  let dd = parseInt(parts[0], 10);\n  let mm = parseInt(parts[1], 10);\n  let yy = parseInt(parts[2], 10);\n  if (isNaN(dd) || isNaN(mm) || isNaN(yy)) return null;\n  if (yy < 100) yy = yy + (yy < 50 ? 2000 : 1900);\n  if (mm < 1 || mm > 12) return null;\n  return new Date(Date.UTC(yy, mm - 1, dd));\n}\n\nfunction formatTanggal(d) {\n  return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + '/' + d.getUTCFullYear();\n}\n\nfunction addDays(d, n) {\n  const nd = new Date(d);\n  nd.setUTCDate(nd.getUTCDate() + n);\n  return nd;\n}\n\nfunction isInTargetMonth(d) {\n  return d.getUTCMonth() + 1 === targetMonth && d.getUTCFullYear() === targetYear;\n}\n\nconst output = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  const namaDokterRaw = row['NAMA DOKTER'];\n  const masuk = parseTanggal(row['TGL MASUK']);\n  const keluar = parseTanggal(row['TGL KELUAR']);\n  if (!namaDokterRaw || !masuk || !keluar) continue;\n  let cursor = masuk;\n  const end = keluar.getTime() >= masuk.getTime() ? keluar : masuk;\n  while (cursor.getTime() <= end.getTime()) {\n    if (isInTargetMonth(cursor)) {\n      output.push({\n        json: {\n          namaDokterRaw: namaDokterRaw,\n          tanggal: formatTanggal(cursor)\n        }\n      });\n      output.push({\n        json: {\n          namaDokterRaw: 'dr. D Sp.GK',\n          tanggal: formatTanggal(cursor)\n        }\n      });\n    }\n    cursor = addDays(cursor, 1);\n  }\n}\nreturn output;"
+      },
+      "id": "Format-ICU-ID",
+      "name": "Format ICU",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1104,
+        352
+      ],
+      "id": "Merge-RI-Poli-ICU-ID",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const triggerData = $('Webhook Trigger').first().json.body;\nconst bulan = triggerData.bulan;\nconst email = triggerData.email || '';\n\nconst [targetMonthStr, targetYearStr] = bulan.split('/');\nconst targetMonth = parseInt(targetMonthStr, 10);\nconst targetYear = parseInt(targetYearStr, 10);\n\nfunction getDaysInMonth(month, year) {\n  return new Date(Date.UTC(year, month, 0)).getDate();\n}\nconst totalDays = getDaysInMonth(targetMonth, targetYear);\n\nfunction formatDate(day, month, year) {\n  return month + '/' + day + '/' + year;\n}\n\nconst allDates = [];\nfor (let d = 1; d <= totalDays; d++) {\n  allDates.push(formatDate(d, targetMonth, targetYear));\n}\n\nconst dokterMap = {\n  dokter_a:   { nik: 'NIK_PLACEHOLDER', nama: 'dr. A Sp.PD' },\n  dokter_b: { nik: 'NIK_PLACEHOLDER', nama: 'dr. B, Sp.PD' },\n  dokter_c:   { nik: 'NIK_PLACEHOLDER', nama: 'dr. C Sp.PK' },\n  dokter_d:   { nik: 'NIK_PLACEHOLDER', nama: 'dr. D Sp.GK' }\n};\nconst dokterKeys = Object.keys(dokterMap);\n\nfunction normalize(s) {\n  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');\n}\nfunction matchDokter(namaRaw) {\n  const n = normalize(namaRaw);\n  if (n.includes('dokter_a')) return 'dokter_a';\n  if (n.includes('dokter_b')) return 'dokter_b';\n  if (n.includes('dokter_c')) return 'dokter_c';\n  if (n.includes('dokter_d')) return 'dokter_d';\n  return null;\n}\n\nconst counts = {};\nfor (const dKey of dokterKeys) {\n  counts[dKey] = {};\n  for (const tgl of allDates) {\n    counts[dKey][tgl] = 0;\n  }\n}\n\nfor (const item of $input.all()) {\n  const namaDokterRaw = item.json.namaDokterRaw;\n  const tanggal = item.json.tanggal;\n  const dokterKey = matchDokter(namaDokterRaw);\n  if (dokterKey && counts[dokterKey] && counts[dokterKey][tanggal] !== undefined) {\n    counts[dokterKey][tanggal] += 1;\n  }\n}\n\nconst output = [];\nfor (const dKey of dokterKeys) {\n  const sortedDates = allDates.slice().sort((a, b) => {\n    const [m1, d1, y1] = a.split('/').map(Number);\n    const [m2, d2, y2] = b.split('/').map(Number);\n    return new Date(Date.UTC(y1, m1-1, d1)) - new Date(Date.UTC(y2, m2-1, d2));\n  });\n\n  let no = 1;\n  for (const tgl of sortedDates) {\n    const jumlah = counts[dKey][tgl] || 0;\n    output.push({\n      json: {\n        dokterKey: dKey,\n        no: no++,\n        nikDokter: dokterMap[dKey].nik,\n        namaDokter: dokterMap[dKey].nama,\n        tanggalPelayanan: tgl,\n        jumlahPasien: jumlah,\n        jumlahBacaanPenunjang: jumlah,\n        email: email\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "id": "Group-Dokter-ID",
+      "name": "Cocokkan & Kelompokkan Dokter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1456,
+        112
+      ],
+      "id": "Combine-All-ID",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\nfor (const item of $input.all()) {\n  output.push({\n    json: {\n      dokterKey: item.json.dokterKey,\n      no: item.json.no,\n      nikDokter: item.json.nikDokter,\n      namaDokter: item.json.namaDokter,\n      tanggalPelayanan: item.json.tanggalPelayanan,\n      jumlahPasien: item.json.jumlahPasien,\n      jumlahBacaanPenunjang: item.json.jumlahBacaanPenunjang,\n      email: item.json.email\n    }\n  });\n}\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        384
+      ],
+      "id": "Filter-Fields-ID",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2400,
+        336
+      ],
+      "id": "Merge-Final-ID",
+      "name": "Merge2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Buat Spreadsheet Output",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ekstrak FileId & Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buat Spreadsheet Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ekstrak FileId & Sheet": {
+      "main": [
+        [
+          {
+            "node": "Switch (Jenis Sumber)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch (Jenis Sumber)": {
+      "main": [
+        [
+          {
+            "node": "Baca Rawat Inap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baca Poli",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baca ICU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Rawat Inap": {
+      "main": [
+        [
+          {
+            "node": "Format Rawat Inap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Rawat Inap": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch (Dokter)": {
+      "main": [
+        [
+          {
+            "node": "Simpan ke Sheet Dokter_A",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simpan ke Sheet Dokter_B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simpan ke Sheet Dokter_C",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simpan ke Sheet Dokter_D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan ke Sheet Dokter_A": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tunggu Semua Selesai": {
+      "main": [
+        [
+          {
+            "node": "Kirim Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan ke Sheet Dokter_B": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simpan ke Sheet Dokter_C": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Simpan ke Sheet Dokter_D": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Baca Poli": {
+      "main": [
+        [
+          {
+            "node": "Format Poli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Poli": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Baca ICU": {
+      "main": [
+        [
+          {
+            "node": "Format ICU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format ICU": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Cocokkan & Kelompokkan Dokter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cocokkan & Kelompokkan Dokter": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Switch (Dokter)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Tunggu Semua Selesai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "77cc9fac-c865-4749-8634-c98e99afc627",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodeGroups": [],
+  "id": "3eKF9KPAHdD2PM6D",
+  "tags": []
+}

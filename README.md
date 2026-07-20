@@ -175,8 +175,8 @@ Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet D
 **Agung Tri Mahmudi**
 
 - Email: agungtrimahmudi.it@gmail.com
-- GitHub: [github.com/agungtm](https://github.com/agungtm)
-- LinkedIn: [linkedin.com/in/agung-tri-mahmudi-909a663b4](https://linkedin.com/in/agung-tri-mahmudi-909a663b4)
+- GitHub: [github.com/Agungtrimahmudi-automation](https://github.com/Agungtrimahmudi-automation)
+- LinkedIn: [linkedin.com/in/agung-tri-mahmudi](https://linkedin.com/in/agung-tri-mahmudi)
 
 ---
 

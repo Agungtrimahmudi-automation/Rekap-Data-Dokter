@@ -49,35 +49,12 @@ Saya membangun **sistem otomatisasi end-to-end** yang menangani seluruh proses d
 
 ### Alur Kerja
 
-Google Form (Upload 3 File Excel)
-↓
-n8n Webhook (Terima Data)
-↓
-Baca 3 File Excel (Rawat Inap, Poli, ICU)
-↓
+Google Form (Upload 3 File Excel) -> n8n Webhook (Terima Data) -> Baca 3 File Excel (Rawat Inap, Poli, ICU)
+
 Format Data:
 
-Normalisasi format tanggal
-
-Pecah rentang tanggal per hari
-↓
-Gabungkan Semua Data (Merge)
-↓
-Kelompokkan per Dokter per Hari
-↓
-Hitung Jumlah Pasien per Hari
-↓
-Simpan ke Google Sheets:
-
-Sheet Dokter A
-
-Sheet Dokter B
-
-Sheet Dokter C
-
-Sheet Dokter D
-↓
-Kirim Email Notifikasi ke Staf
+Normalisasi format tanggal -> Pecah rentang tanggal per hari -> Gabungkan Semua Data (Merge) -> Kelompokkan per Dokter per Hari -> Hitung Jumlah Pasien per Hari ->
+Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet Dokter D -> Kirim Email Notifikasi ke Staf
 
 
 ### Teknologi yang Digunakan

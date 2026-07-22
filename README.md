@@ -151,7 +151,7 @@ Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet D
 
 | Google Form | Workflow n8n | Hasil Output |
 | :--- | :--- | :--- |
-| ![Form](assets/form.png) | ![Workflow](assets/workflow.png) | ![Output](assets/output.png) |
+| ![Form](assets/form.PNG) | ![Workflow](assets/workflow.PNG) | ![Output](assets/output.PNG) |
 
 ---
 

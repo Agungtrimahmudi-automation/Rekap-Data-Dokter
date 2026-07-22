@@ -155,12 +155,6 @@ Simpan ke Google Sheets: Sheet Dokter A, Sheet Dokter B, Sheet Dokter C, Sheet D
 
 ---
 
-## 🔗 Demo Video
-
-[Link video demo]
-
----
-
 ## 📌 Teknologi
 
 ![n8n](https://img.shields.io/badge/n8n-0A0A0A?style=for-the-badge&logo=n8n&logoColor=white)
